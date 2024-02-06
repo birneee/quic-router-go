@@ -3,6 +3,7 @@ package router
 import (
 	"crypto/cipher"
 	"encoding/binary"
+	"github.com/quic-go/quic-go"
 	"net/netip"
 )
 
@@ -49,6 +50,13 @@ func addrToServerID(addr netip.AddrPort) [6]byte {
 	return serverID
 }
 
+func serverIDToAddr(serverID [6]byte) netip.AddrPort {
+	return netip.AddrPortFrom(
+		netip.AddrFrom4([4]byte(serverID[:4])),
+		binary.LittleEndian.Uint16(serverID[4:]),
+	)
+}
+
 func (p *ConnIDProtector) ProtectAddr(addr netip.AddrPort, random [6]byte) [connIDLen]byte {
 	return p.Protect(addrToServerID(addr), random)
 }
@@ -66,6 +74,14 @@ func (p *ConnIDProtector) Decode(connID []byte) ([6]byte, [6]byte, error) {
 	return serverID, nonce, nil
 }
 
+func (p *ConnIDProtector) DecodeAsAddr(connID quic.ConnectionID) (netip.AddrPort, error) {
+	serverID, _, err := p.Decode(connID.Bytes())
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	return serverIDToAddr(serverID), nil
+}
+
 func (p *ConnIDProtector) DecodeServerIDFromProtectedQUICShortHeaderPacket(buf []byte) ([6]byte, error) {
 	// destination connection id starts after 1 byte
 	// and is always connIDLen bytes long
@@ -81,8 +97,5 @@ func (p *ConnIDProtector) DecodeServerIDFromProtectedQUICShortHeaderPacketAsAddr
 	if err != nil {
 		return netip.AddrPort{}, err
 	}
-	return netip.AddrPortFrom(
-		netip.AddrFrom4([4]byte(serverID[:4])),
-		binary.LittleEndian.Uint16(serverID[4:]),
-	), nil
+	return serverIDToAddr(serverID), nil
 }

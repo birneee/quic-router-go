@@ -188,7 +188,7 @@ func (r *Router) Context() context.Context {
 func (r *Router) Stop(err error) {
 	r.stopOnce.Do(func() {
 		if err != nil {
-			fmt.Printf("stopped with error: %s\n", err)
+			fmt.Printf("router stopped with error: %s\n", err)
 		} else {
 			fmt.Printf("stopped\n")
 		}
